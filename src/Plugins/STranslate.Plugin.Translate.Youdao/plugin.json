@@ -3,7 +3,7 @@
   "Name": "Youdao",
   "Description": "Youdao plugin for stranslate",
   "Author": "zggsong",
-  "Version": "1.0.0",
+  "Version": "1.0.1",
   "Website": "https://github.com/STranslate/STranslate.Plugin.Translate.Youdao",
   "ExecuteFileName": "STranslate.Plugin.Translate.Youdao.dll",
   "IconPath": "icon.png"

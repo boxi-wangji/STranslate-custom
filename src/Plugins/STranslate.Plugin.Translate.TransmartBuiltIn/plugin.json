@@ -3,7 +3,7 @@
   "Name": "Transmart (Built-in, Deprecated)",
   "Description": "Tencent Transmart service has been discontinued; this plugin is deprecated.",
   "Author": "zggsong",
-  "Version": "1.0.1",
+  "Version": "1.0.2",
   "Website": "https://github.com/ZGGSONG/STranslate",
   "ExecuteFileName": "STranslate.Plugin.Translate.TransmartBuiltIn.dll",
   "IconPath": "icon.png"
