@@ -451,7 +451,7 @@
 
                 <ui:SettingsExpander Description="{DynamicResource General_TextSeparatorHandleTypeDescription}" Header="{DynamicResource General_TextSeparatorHandleType}">
                     <ui:SettingsExpander.HeaderIcon>
-                        <ui:FontIcon Icon="{x:Static ui:FluentSystemIcons.TextFont_20_Regular}" />
+                        <ui:FontIcon Icon="{x:Static ui:FluentSystemIcons.TextUnderlineDouble_20_Regular}" />
                     </ui:SettingsExpander.HeaderIcon>
                     <ComboBox
                         MinWidth="160"
