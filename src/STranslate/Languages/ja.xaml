@@ -136,6 +136,8 @@
     <sys:String x:Key="General_CopyAfterTranslationNotAutomatic">「自動実行」以外の翻訳後にコピー</sys:String>
     <sys:String x:Key="General_CopyAfterOcr">OCR後にコピー</sys:String>
     <sys:String x:Key="General_CopyAfterOcrDescription">すべての文字認識シーンにおいて、認識後に結果を自動コピーします。</sys:String>
+    <sys:String x:Key="General_FocusInputAfterScreenshotTranslate">スクリーンショット翻訳後に入力欄をアクティブ化</sys:String>
+    <sys:String x:Key="General_FocusInputAfterScreenshotTranslateDescription">オン: スクリーンショット翻訳後にメインウィンドウを表示し、入力欄へフォーカスします。オフ: メインウィンドウが最前面のときは結果だけ更新し、フォーカスを奪いません。最前面でない場合は表示を復元します。</sys:String>
     <sys:String x:Key="General_PluginMarketCdnSource">プラグイン市場CDNソース</sys:String>
     <sys:String x:Key="General_PluginMarketCdnSourceDescription">プラグイン市場データのCDN加速サービスを選択（GitHub直リンクはキャッシュ遅延なし）</sys:String>
     <sys:String x:Key="General_CustomCdnUrl">カスタムCDN URL</sys:String>

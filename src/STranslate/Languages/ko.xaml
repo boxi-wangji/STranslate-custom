@@ -136,6 +136,8 @@
     <sys:String x:Key="General_CopyAfterTranslationNotAutomatic">「자동 실행」이 아닌 서비스 번역 후 복사</sys:String>
     <sys:String x:Key="General_CopyAfterOcr">OCR 후 복사</sys:String>
     <sys:String x:Key="General_CopyAfterOcrDescription">모든 텍스트 인식 상황에서 인식 후 결과를 자동으로 복사합니다.</sys:String>
+    <sys:String x:Key="General_FocusInputAfterScreenshotTranslate">스크린샷 번역 후 입력 상자 활성화</sys:String>
+    <sys:String x:Key="General_FocusInputAfterScreenshotTranslateDescription">켜면 스크린샷 번역 후 메인 창을 표시하고 입력 상자에 포커스합니다. 끄면 메인 창이 항상 위 상태일 때 결과만 업데이트하고 포커스를 가져가지 않습니다. 항상 위가 아니면 창을 다시 표시합니다.</sys:String>
     <sys:String x:Key="General_PluginMarketCdnSource">플러그인 마켓 CDN 소스</sys:String>
     <sys:String x:Key="General_PluginMarketCdnSourceDescription">플러그인 마켓 데이터의 CDN 가속 서비스 선택 (GitHub 직접 연결은 캐시 지연 없음)</sys:String>
     <sys:String x:Key="General_CustomCdnUrl">사용자 지정 CDN URL</sys:String>

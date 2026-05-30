@@ -139,6 +139,8 @@
     <sys:String x:Key="General_CopyAfterTranslationNotAutomatic">非「自動執行」服務翻譯後複製</sys:String>
     <sys:String x:Key="General_CopyAfterOcr">OCR後複製</sys:String>
     <sys:String x:Key="General_CopyAfterOcrDescription">針對所有文字識別場景，識別後自動複製識別結果。</sys:String>
+    <sys:String x:Key="General_FocusInputAfterScreenshotTranslate">截圖翻譯後啟用輸入框</sys:String>
+    <sys:String x:Key="General_FocusInputAfterScreenshotTranslateDescription">開啟後，截圖翻譯完成會顯示主視窗並聚焦輸入框。關閉後，若主視窗已置頂，則只更新結果、不搶焦點；非置頂時仍會恢復顯示。</sys:String>
     <sys:String x:Key="General_PluginMarketCdnSource">外掛市場CDN來源</sys:String>
     <sys:String x:Key="General_PluginMarketCdnSourceDescription">選擇外掛市場資料的CDN加速服務（GitHub直鏈無快取延遲）</sys:String>
     <sys:String x:Key="General_CustomCdnUrl">自訂CDN網址</sys:String>

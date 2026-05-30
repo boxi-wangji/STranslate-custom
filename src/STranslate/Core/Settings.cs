@@ -85,6 +85,8 @@ public partial class Settings : ObservableObject
 
     [ObservableProperty] public partial bool CopyAfterOcr { get; set; }
 
+    [ObservableProperty] public partial bool FocusInputAfterScreenshotTranslate { get; set; } = true;
+
     [ObservableProperty] public partial int HttpTimeout { get; set; } = 30;
 
     [ObservableProperty] public partial LangEnum SourceLang { get; set; } = LangEnum.Auto;

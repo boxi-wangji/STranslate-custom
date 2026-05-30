@@ -139,6 +139,8 @@
     <sys:String x:Key="General_CopyAfterTranslationNotAutomatic">非「自动执行」服务翻译后复制</sys:String>
     <sys:String x:Key="General_CopyAfterOcr">OCR后复制</sys:String>
     <sys:String x:Key="General_CopyAfterOcrDescription">针对所有文本识别场景，识别后自动复制识别结果</sys:String>
+    <sys:String x:Key="General_FocusInputAfterScreenshotTranslate">截图翻译后激活输入框</sys:String>
+    <sys:String x:Key="General_FocusInputAfterScreenshotTranslateDescription">开启后，截图翻译完成会显示主窗口并聚焦输入框。关闭后，若主窗口已置顶，则只更新结果、不抢焦点；非置顶时仍会恢复显示。</sys:String>
     <sys:String x:Key="General_PluginMarketCdnSource">插件市场CDN源</sys:String>
     <sys:String x:Key="General_PluginMarketCdnSourceDescription">选择插件市场数据的CDN加速服务（GitHub直链无缓存延迟）</sys:String>
     <sys:String x:Key="General_CustomCdnUrl">自定义CDN URL</sys:String>

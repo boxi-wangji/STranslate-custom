@@ -46,6 +46,7 @@ public partial class MainWindowViewModel : ObservableObject, IDisposable
     private readonly DebounceExecutor _debounceExecutor;
     private ClipboardMonitor? _clipboardMonitor;
     private bool _forceShowInputForInputTranslate;
+    private bool _skipShowForNextTranslate;
 
     public Settings Settings { get; }
     public HotkeySettings HotkeySettings { get; }
@@ -217,6 +218,13 @@ public partial class MainWindowViewModel : ObservableObject, IDisposable
         ResetTranslationLanguageState();
         InputText = text;
         TranslateCommand.Execute(force);
+
+        var skipShow = _skipShowForNextTranslate;
+        _skipShowForNextTranslate = false;
+
+        if (skipShow)
+            return;
+
         Show(activationMode);
         UpdateCaret();
     }
@@ -828,6 +836,7 @@ public partial class MainWindowViewModel : ObservableObject, IDisposable
             if (Settings.CopyAfterOcr)
                 ClipboardHelper.SetText(result.Text);
 
+            _skipShowForNextTranslate = !Settings.FocusInputAfterScreenshotTranslate && IsTopmost;
             ExecuteTranslate(HandleCapturedText(result.Text, TextSeparatorHandleScope.ScreenshotTranslate));
         }
         catch (TaskCanceledException)

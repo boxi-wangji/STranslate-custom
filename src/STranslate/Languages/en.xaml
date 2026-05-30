@@ -139,6 +139,8 @@
     <sys:String x:Key="General_CopyAfterTranslationNotAutomatic">Copy after translation for non-"Automatic" services</sys:String>
     <sys:String x:Key="General_CopyAfterOcr">Copy after OCR</sys:String>
     <sys:String x:Key="General_CopyAfterOcrDescription">For all text recognition scenarios, automatically copy the recognition result after OCR.</sys:String>
+    <sys:String x:Key="General_FocusInputAfterScreenshotTranslate">Activate input after screenshot translation</sys:String>
+    <sys:String x:Key="General_FocusInputAfterScreenshotTranslateDescription">On: show the main window and focus the input box after screenshot translation. Off: if the main window is topmost, update results without stealing focus; non-topmost windows still reopen.</sys:String>
     <sys:String x:Key="General_PluginMarketCdnSource">Plugin Market CDN Source</sys:String>
     <sys:String x:Key="General_PluginMarketCdnSourceDescription">Select CDN acceleration service for plugin market data (GitHub direct has no cache delay)</sys:String>
     <sys:String x:Key="General_CustomCdnUrl">Custom CDN URL</sys:String>

@@ -28,6 +28,7 @@
 3. `ScreenshotTranslateHandlerAsync()` 调 OCR `RecognizeAsync()`。
 4. OCR 成功后：按设置可复制识别文本，再通过 `HandleCapturedText(text, TextSeparatorHandleScope.ScreenshotTranslate)` 处理换行与可选分隔符。
 5. 处理后的文本调用 `ExecuteTranslate()` 进入主翻译链路。
+6. `Settings.FocusInputAfterScreenshotTranslate` 控制截图翻译完成后是否显示主窗口并聚焦输入框；关闭且主窗口置顶时只更新结果不抢焦点，非置顶时仍会恢复主窗口。
 
 ### 从入口到结果：静默 OCR
 1. `SilentOcrAsync()` 截图后调用当前 OCR 服务识别文本。
@@ -74,6 +75,7 @@
   - `ImageQuality`
   - `ShowImageTranslateItemInNotifyIconMenu`
 - OCR 语言设置：`OcrLanguage`
+- 截图翻译焦点设置：`FocusInputAfterScreenshotTranslate`
 - 取词后处理设置：`TextSeparatorHandleType`、`TextSeparatorHandleScopes`
 
 ## 关键文件

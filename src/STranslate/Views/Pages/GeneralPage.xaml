@@ -380,6 +380,15 @@
                             OffContent="{DynamicResource Disable}"
                             OnContent="{DynamicResource Enable}" />
                     </ui:SettingsCard>
+                    <ui:SettingsCard Description="{DynamicResource General_FocusInputAfterScreenshotTranslateDescription}" Header="{DynamicResource General_FocusInputAfterScreenshotTranslate}">
+                        <ui:SettingsCard.HeaderIcon>
+                            <ui:FontIcon Icon="{x:Static ui:FluentSystemIcons.Keyboard_20_Regular}" />
+                        </ui:SettingsCard.HeaderIcon>
+                        <ui:ToggleSwitch
+                            IsOn="{Binding Settings.FocusInputAfterScreenshotTranslate}"
+                            OffContent="{DynamicResource Disable}"
+                            OnContent="{DynamicResource Enable}" />
+                    </ui:SettingsCard>
                 </control:CardGroup>
 
                 <ui:SettingsExpander Description="{DynamicResource General_AutoTranslateDescription}" Header="{DynamicResource General_AutoTranslate}">
