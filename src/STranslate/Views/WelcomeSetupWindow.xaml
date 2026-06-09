@@ -9,6 +9,7 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:ui="http://schemas.inkore.net/lib/ui/wpf/modern"
     xmlns:vm="clr-namespace:STranslate.ViewModels"
+    xmlns:xf="clr-namespace:XamlFlair;assembly=XamlFlair.WPF"
     x:Name="WelcomeWindow"
     Title="{DynamicResource WelcomeSetup_Title}"
     Width="560"
@@ -74,7 +75,12 @@
         </Border>
 
         <Grid Grid.Row="1" Margin="24,22,24,0">
-            <ui:ScrollViewerEx VerticalScrollBarVisibility="Auto" Visibility="{Binding SelectedStepIndex, Converter={cnvt:EqualToVisibilityConverter}, ConverterParameter=0}">
+            <ui:ScrollViewerEx
+                xf:Animations.Primary="{xf:Animate BasedOn={StaticResource FadeInAndSlideFromRight},
+                                                    Event=Visibility,
+                                                    Duration=250}"
+                VerticalScrollBarVisibility="Auto"
+                Visibility="{Binding SelectedStepIndex, Converter={cnvt:EqualToVisibilityConverter}, ConverterParameter=0}">
                 <ikw:SimpleStackPanel Spacing="18">
                     <ikw:SimpleStackPanel Spacing="6">
                         <TextBlock Style="{DynamicResource {x:Static ui:ThemeKeys.SubtitleTextBlockStyleKey}}" Text="{DynamicResource WelcomeSetup_Title}" />
@@ -110,7 +116,12 @@
                 </ikw:SimpleStackPanel>
             </ui:ScrollViewerEx>
 
-            <ui:ScrollViewerEx VerticalScrollBarVisibility="Auto" Visibility="{Binding SelectedStepIndex, Converter={cnvt:EqualToVisibilityConverter}, ConverterParameter=1}">
+            <ui:ScrollViewerEx
+                xf:Animations.Primary="{xf:Animate BasedOn={StaticResource FadeInAndSlideFromRight},
+                                                    Event=Visibility,
+                                                    Duration=250}"
+                VerticalScrollBarVisibility="Auto"
+                Visibility="{Binding SelectedStepIndex, Converter={cnvt:EqualToVisibilityConverter}, ConverterParameter=1}">
                 <ikw:SimpleStackPanel Spacing="8">
                     <TextBlock
                         Margin="0,0,0,6"
@@ -157,7 +168,12 @@
                 </ikw:SimpleStackPanel>
             </ui:ScrollViewerEx>
 
-            <ui:ScrollViewerEx VerticalScrollBarVisibility="Auto" Visibility="{Binding SelectedStepIndex, Converter={cnvt:EqualToVisibilityConverter}, ConverterParameter=2}">
+            <ui:ScrollViewerEx
+                xf:Animations.Primary="{xf:Animate BasedOn={StaticResource FadeInAndSlideFromRight},
+                                                    Event=Visibility,
+                                                    Duration=250}"
+                VerticalScrollBarVisibility="Auto"
+                Visibility="{Binding SelectedStepIndex, Converter={cnvt:EqualToVisibilityConverter}, ConverterParameter=2}">
                 <ikw:SimpleStackPanel Spacing="8">
                     <TextBlock
                         Margin="0,0,0,6"
@@ -242,7 +258,12 @@
                 </ikw:SimpleStackPanel>
             </ui:ScrollViewerEx>
 
-            <ui:ScrollViewerEx VerticalScrollBarVisibility="Auto" Visibility="{Binding SelectedStepIndex, Converter={cnvt:EqualToVisibilityConverter}, ConverterParameter=3}">
+            <ui:ScrollViewerEx
+                xf:Animations.Primary="{xf:Animate BasedOn={StaticResource FadeInAndSlideFromRight},
+                                                    Event=Visibility,
+                                                    Duration=250}"
+                VerticalScrollBarVisibility="Auto"
+                Visibility="{Binding SelectedStepIndex, Converter={cnvt:EqualToVisibilityConverter}, ConverterParameter=3}">
                 <ikw:SimpleStackPanel Spacing="8">
                     <TextBlock
                         Margin="0,0,0,6"
@@ -284,7 +305,12 @@
                 </ikw:SimpleStackPanel>
             </ui:ScrollViewerEx>
 
-            <ui:ScrollViewerEx VerticalScrollBarVisibility="Auto" Visibility="{Binding SelectedStepIndex, Converter={cnvt:EqualToVisibilityConverter}, ConverterParameter=4}">
+            <ui:ScrollViewerEx
+                xf:Animations.Primary="{xf:Animate BasedOn={StaticResource FadeInAndSlideFromRight},
+                                                    Event=Visibility,
+                                                    Duration=250}"
+                VerticalScrollBarVisibility="Auto"
+                Visibility="{Binding SelectedStepIndex, Converter={cnvt:EqualToVisibilityConverter}, ConverterParameter=4}">
                 <ikw:SimpleStackPanel Spacing="8">
                     <TextBlock
                         Margin="0,0,0,6"
