@@ -33,19 +33,24 @@ internal static class OcrLayoutAnalyzer
             return [];
 
         var metrics = LayoutMetrics.From(lineSegments);
+        var regions = BuildLayoutRegions(lineSegments, metrics);
+
+        return OrderRegionsForReading(regions, metrics)
+            .SelectMany(region => AnalyzeRegion(region, metrics))
+            .ToList();
+    }
+
+    private static List<OcrContent> AnalyzeRegion(LayoutRegion region, LayoutMetrics metrics)
+    {
         var paragraphs = new List<ParagraphGroup>();
 
-        foreach (var line in lineSegments.OrderBy(x => x.Bounds.Top).ThenBy(x => x.Bounds.Left))
+        foreach (var line in region.Lines.OrderBy(x => x.Bounds.Top).ThenBy(x => x.Bounds.Left))
         {
             var target = FindBestParagraph(line, paragraphs, metrics);
             if (target == null)
-            {
                 paragraphs.Add(new ParagraphGroup(line));
-            }
             else
-            {
                 target.Add(line);
-            }
         }
 
         return paragraphs
@@ -53,6 +58,137 @@ internal static class OcrLayoutAnalyzer
             .ThenBy(x => x.Bounds.Left)
             .Select(x => x.ToOcrContent())
             .ToList();
+    }
+
+    private static List<LayoutRegion> BuildLayoutRegions(List<LineSegment> lineSegments, LayoutMetrics metrics)
+    {
+        var regions = new List<LayoutRegion>();
+
+        foreach (var line in lineSegments.OrderBy(x => x.Bounds.Top).ThenBy(x => x.Bounds.Left))
+        {
+            var target = FindBestRegion(line, regions, metrics);
+            if (target == null)
+                regions.Add(new LayoutRegion(line));
+            else
+                target.Add(line);
+        }
+
+        return regions;
+    }
+
+    private static LayoutRegion? FindBestRegion(
+        LineSegment line,
+        List<LayoutRegion> regions,
+        LayoutMetrics metrics)
+    {
+        LayoutRegion? bestRegion = null;
+        var bestScore = double.NegativeInfinity;
+
+        foreach (var region in regions)
+        {
+            if (!TryGetRegionAffinity(region, line, metrics, out var score))
+                continue;
+
+            if (score > bestScore)
+            {
+                bestScore = score;
+                bestRegion = region;
+            }
+        }
+
+        return bestRegion;
+    }
+
+    private static bool TryGetRegionAffinity(
+        LayoutRegion region,
+        LineSegment line,
+        LayoutMetrics metrics,
+        out double score)
+    {
+        score = double.NegativeInfinity;
+
+        var bestReferenceScore = double.NegativeInfinity;
+        foreach (var reference in region.Lines.TakeLast(4))
+        {
+            if (line.Bounds.Top < reference.Bounds.Top - metrics.LineHeight * 0.35)
+                continue;
+
+            var verticalGap = VerticalGap(reference.Bounds, line.Bounds);
+            if (verticalGap > metrics.LineHeight * 3.2)
+                continue;
+
+            var horizontalOverlap = HorizontalOverlapRatio(reference.Bounds, line.Bounds);
+            var leftDelta = Math.Abs(reference.Bounds.Left - line.Bounds.Left);
+            var centerDelta = Math.Abs(reference.Bounds.CenterX - line.Bounds.CenterX);
+            var hasRegionAffinity =
+                horizontalOverlap >= 0.30 ||
+                leftDelta <= metrics.LineHeight * 1.8 ||
+                centerDelta <= Math.Max(reference.Bounds.Width, line.Bounds.Width) * 0.35;
+
+            if (!hasRegionAffinity)
+                continue;
+
+            var leftScore = 1 - Math.Min(1, leftDelta / Math.Max(metrics.LineHeight * 2, 1));
+            var centerScore = 1 - Math.Min(1, centerDelta / Math.Max(Math.Max(reference.Bounds.Width, line.Bounds.Width), 1));
+            var gapScore = 1 - Math.Min(1, verticalGap / Math.Max(metrics.LineHeight * 3.2, 1));
+            var widthDelta = Math.Abs(reference.Bounds.Width - line.Bounds.Width);
+            var widthScore = 1 - Math.Min(1, widthDelta / Math.Max(Math.Max(reference.Bounds.Width, line.Bounds.Width), 1));
+            var referenceScore = horizontalOverlap * 4 + leftScore * 2 + centerScore + gapScore + widthScore;
+
+            if (referenceScore > bestReferenceScore)
+                bestReferenceScore = referenceScore;
+        }
+
+        if (double.IsNegativeInfinity(bestReferenceScore))
+            return false;
+
+        score = bestReferenceScore;
+        return true;
+    }
+
+    private static IEnumerable<LayoutRegion> OrderRegionsForReading(
+        List<LayoutRegion> regions,
+        LayoutMetrics metrics)
+    {
+        var pending = regions
+            .OrderBy(x => x.Bounds.Top)
+            .ThenBy(x => x.Bounds.Left)
+            .ToList();
+
+        while (pending.Count > 0)
+        {
+            var band = new List<LayoutRegion> { pending[0] };
+            var bandBounds = pending[0].Bounds;
+            pending.RemoveAt(0);
+
+            for (var i = 0; i < pending.Count;)
+            {
+                var candidate = pending[i];
+                if (IsSameReadingBand(bandBounds, candidate.Bounds, metrics))
+                {
+                    band.Add(candidate);
+                    bandBounds = Bounds.Union(bandBounds, candidate.Bounds);
+                    pending.RemoveAt(i);
+                }
+                else
+                {
+                    i++;
+                }
+            }
+
+            foreach (var region in band.OrderBy(x => x.Bounds.Left).ThenBy(x => x.Bounds.Top))
+                yield return region;
+        }
+    }
+
+    private static bool IsSameReadingBand(Bounds bandBounds, Bounds candidateBounds, LayoutMetrics metrics)
+    {
+        if (VerticalOverlapRatio(bandBounds, candidateBounds) >= 0.25)
+            return true;
+
+        var topDelta = Math.Abs(bandBounds.Top - candidateBounds.Top);
+        var hasVerticalContact = candidateBounds.Top <= bandBounds.Bottom + metrics.LineHeight * 1.5;
+        return topDelta <= metrics.LineHeight * 2 && hasVerticalContact;
     }
 
     private static ParagraphGroup? FindBestParagraph(
@@ -111,6 +247,12 @@ internal static class OcrLayoutAnalyzer
         if (!hasColumnAffinity)
             return false;
 
+        if (ShouldMergeHyphenated(previous.Text, current.Text))
+            return true;
+
+        if (LooksLikeGridCell(previous, metrics) && LooksLikeGridCell(current, metrics))
+            return false;
+
         if (LooksLikeStandaloneControl(previous) || LooksLikeStandaloneControl(current))
             return false;
 
@@ -149,6 +291,7 @@ internal static class OcrLayoutAnalyzer
     private static IEnumerable<LineSegment> SplitVisualLine(VisualLine line)
     {
         var sortedItems = line.Items.OrderBy(x => x.Bounds.Left).ToList();
+        var groups = new List<List<LayoutItem>>();
         var group = new List<LayoutItem>();
         var lineHeight = Median(sortedItems.Select(x => x.Bounds.Height));
 
@@ -164,7 +307,7 @@ internal static class OcrLayoutAnalyzer
 
                 if (gap > maxInlineGap)
                 {
-                    yield return LineSegment.From(group);
+                    groups.Add(group);
                     group = [];
                 }
             }
@@ -173,7 +316,10 @@ internal static class OcrLayoutAnalyzer
         }
 
         if (group.Count > 0)
-            yield return LineSegment.From(group);
+            groups.Add(group);
+
+        foreach (var itemGroup in groups)
+            yield return LineSegment.From(itemGroup, groups.Count);
     }
 
     private static bool IsSameVisualLine(Bounds lineBounds, Bounds itemBounds)
@@ -237,6 +383,12 @@ internal static class OcrLayoutAnalyzer
         var text = lines[0].Text;
         for (var i = 1; i < lines.Count; i++)
         {
+            if (ShouldMergeHyphenated(text, lines[i].Text))
+            {
+                text = text[..^1] + lines[i].Text;
+                continue;
+            }
+
             if (NeedsSpace(text, lines[i].Text))
                 text += " ";
 
@@ -265,6 +417,19 @@ internal static class OcrLayoutAnalyzer
         return true;
     }
 
+    private static bool ShouldMergeHyphenated(string previous, string current)
+    {
+        if (previous.Length < 2 || string.IsNullOrWhiteSpace(current))
+            return false;
+
+        var beforeHyphen = previous[^2];
+        var first = current[0];
+        return previous[^1] == '-' &&
+               IsLatinLetter(beforeHyphen) &&
+               IsLatinLetter(first) &&
+               char.IsLower(first);
+    }
+
     private static bool LooksLikeStandaloneControl(LineSegment line)
     {
         if (IsListStart(line.Text))
@@ -279,6 +444,17 @@ internal static class OcrLayoutAnalyzer
 
         var widthRatio = line.Bounds.Width / Math.Max(line.Bounds.Height, 1);
         return widthRatio <= 6.2 && !HasSentenceEnding(line.Text);
+    }
+
+    private static bool LooksLikeGridCell(LineSegment line, LayoutMetrics metrics)
+    {
+        if (!line.HasRowPeers || IsListStart(line.Text) || HasSentenceEnding(line.Text))
+            return false;
+
+        var wordCount = line.Text.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length;
+        return wordCount <= 3 &&
+               line.Text.Length <= 32 &&
+               line.Bounds.Width <= metrics.LineHeight * 7;
     }
 
     private static bool IsListStart(string text)
@@ -302,6 +478,9 @@ internal static class OcrLayoutAnalyzer
 
     private static bool HasSentenceEnding(string text) =>
         text.IndexOfAny(['.', '!', '?', ';', ':', '。', '！', '？', '；', '：']) >= 0;
+
+    private static bool IsLatinLetter(char ch) =>
+        (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z');
 
     private static bool IsCjk(char ch) =>
         (ch >= '\u3400' && ch <= '\u9fff') ||
@@ -355,6 +534,25 @@ internal static class OcrLayoutAnalyzer
         }
     }
 
+    private sealed class LayoutRegion
+    {
+        internal LayoutRegion(LineSegment line)
+        {
+            Lines.Add(line);
+            Bounds = line.Bounds;
+        }
+
+        internal List<LineSegment> Lines { get; } = [];
+
+        internal Bounds Bounds { get; private set; }
+
+        internal void Add(LineSegment line)
+        {
+            Lines.Add(line);
+            Bounds = Bounds.Union(Bounds, line.Bounds);
+        }
+    }
+
     private sealed class ParagraphGroup
     {
         internal ParagraphGroup(LineSegment line) => Lines.Add(line);
@@ -376,11 +574,12 @@ internal static class OcrLayoutAnalyzer
 
     private sealed class LineSegment
     {
-        private LineSegment(List<LayoutItem> items)
+        private LineSegment(List<LayoutItem> items, int visualLineSegmentCount)
         {
             Items = items;
             Bounds = Bounds.Union(items.Select(x => x.Bounds));
             Text = JoinLineText(items);
+            VisualLineSegmentCount = visualLineSegmentCount;
         }
 
         internal List<LayoutItem> Items { get; }
@@ -389,7 +588,12 @@ internal static class OcrLayoutAnalyzer
 
         internal string Text { get; }
 
-        internal static LineSegment From(List<LayoutItem> items) => new([.. items.OrderBy(x => x.Bounds.Left)]);
+        internal int VisualLineSegmentCount { get; }
+
+        internal bool HasRowPeers => VisualLineSegmentCount > 1;
+
+        internal static LineSegment From(List<LayoutItem> items, int visualLineSegmentCount) =>
+            new([.. items.OrderBy(x => x.Bounds.Left)], visualLineSegmentCount);
     }
 
     private sealed class LayoutItem
@@ -435,6 +639,8 @@ internal static class OcrLayoutAnalyzer
         internal double Height => Bottom - Top;
 
         internal double CenterY => (Top + Bottom) / 2;
+
+        internal double CenterX => (Left + Right) / 2;
 
         internal static Bounds From(IReadOnlyList<BoxPoint> points) =>
             new(

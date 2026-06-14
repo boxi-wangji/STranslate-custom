@@ -32,6 +32,23 @@ public class OcrLayoutAnalyzerTests
     }
 
     [Fact]
+    public void SmartCompletesLeftColumnBeforeRightColumn()
+    {
+        var result = AnalyzeSmart(
+            Box("Left first paragraph", 0, 0, 170, 20),
+            Box("continues here", 0, 24, 135, 20),
+            Box("Right column starts", 300, 12, 170, 20),
+            Box("continues separately", 300, 36, 180, 20),
+            Box("Left second paragraph", 0, 70, 185, 20),
+            Box("continues too", 0, 94, 120, 20));
+
+        Assert.Equal(3, result.Count);
+        Assert.Equal("Left first paragraph continues here", result[0].Text);
+        Assert.Equal("Left second paragraph continues too", result[1].Text);
+        Assert.Equal("Right column starts continues separately", result[2].Text);
+    }
+
+    [Fact]
     public void SmartDoesNotMergeUiLabelsOnSameRow()
     {
         var result = AnalyzeSmart(
@@ -40,6 +57,46 @@ public class OcrLayoutAnalyzerTests
             Box("View", 132, 0, 36, 20));
 
         Assert.Equal(["File", "Edit", "View"], result.Select(x => x.Text));
+    }
+
+    [Fact]
+    public void SmartDoesNotMergeSettingsCardControls()
+    {
+        var result = AnalyzeSmart(
+            Box("General", 0, 0, 64, 20),
+            Box("Enable", 220, 0, 70, 20),
+            Box("Theme", 0, 32, 56, 20),
+            Box("Dark", 220, 32, 46, 20));
+
+        Assert.Equal(["General", "Theme", "Enable", "Dark"], result.Select(x => x.Text));
+    }
+
+    [Fact]
+    public void SmartDoesNotMergeTableCells()
+    {
+        var result = AnalyzeSmart(
+            Box("First name", 0, 0, 100, 20),
+            Box("Order status", 150, 0, 110, 20),
+            Box("Alice Smith", 0, 28, 105, 20),
+            Box("Active now", 150, 28, 95, 20),
+            Box("Bob Stone", 0, 56, 90, 20),
+            Box("Paused now", 150, 56, 96, 20));
+
+        Assert.Equal(
+            ["First name", "Alice Smith", "Bob Stone", "Order status", "Active now", "Paused now"],
+            result.Select(x => x.Text));
+    }
+
+    [Fact]
+    public void SmartKeepsTitleAndBodySeparate()
+    {
+        var result = AnalyzeSmart(
+            Box("Account Settings", 0, 0, 220, 32),
+            Box("Manage your profile details", 0, 48, 230, 20));
+
+        Assert.Equal(2, result.Count);
+        Assert.Equal("Account Settings", result[0].Text);
+        Assert.Equal("Manage your profile details", result[1].Text);
     }
 
     [Fact]
@@ -75,6 +132,17 @@ public class OcrLayoutAnalyzerTests
 
         Assert.Single(result);
         Assert.Equal("你好", result[0].Text);
+    }
+
+    [Fact]
+    public void SmartMergesHyphenatedEnglishContinuation()
+    {
+        var result = AnalyzeSmart(
+            Box("trans-", 0, 0, 54, 20),
+            Box("lation", 0, 24, 56, 20));
+
+        Assert.Single(result);
+        Assert.Equal("translation", result[0].Text);
     }
 
     [Fact]

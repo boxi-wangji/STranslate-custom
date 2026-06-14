@@ -48,7 +48,7 @@
 ### 从入口到结果：图片翻译窗口执行
 1. `ImageTranslateWindowViewModel.ExecuteAsync(bitmap)` 获取图片翻译专用 OCR 服务（无则回退启用 OCR 服务）。
 2. OCR 后执行 `ApplyLayoutAnalysis()`：按当前版面分析模式重组文本块。
-   - `Smart`：默认智能分段，先按坐标恢复视觉行，再按栏/区域和段落关系合并，避免跨栏链式吞并；短 UI 文本、表格/按钮类文本会更保守地保持边界。
+   - `Smart`：默认智能分段，先按坐标恢复视觉行，再划分区域/列，最后只在同一区域内合并段落，避免跨栏链式吞并；短 UI 文本、表格/按钮类文本会更保守地保持边界，英文断词续行会合并。
    - `NoMerge`：保留 OCR 原始块。
    - 无坐标 OCR：跳过版面分析，保留 OCR 返回文本。
 3. 获取 `TranslateService.ImageTranslateService`（必须是 `ITranslatePlugin`，词典服务不支持）。
