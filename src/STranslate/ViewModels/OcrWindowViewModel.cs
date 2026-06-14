@@ -164,7 +164,10 @@ public partial class OcrWindowViewModel : ObservableObject, IDisposable
                 QrCodeResult = qrResult.Text;
             }
 
-            _lastOcrResult = await ocrSvc.RecognizeAsync(new OcrRequest(data, Settings.OcrLanguage), cancellationToken);
+            _lastOcrResult = await ocrSvc.RecognizeAsync(
+                new OcrRequest(data, Settings.OcrLanguage, bitmap.Width, bitmap.Height),
+                cancellationToken);
+            Utilities.NormalizeOcrCoordinates(_lastOcrResult, bitmap.Width, bitmap.Height);
 
             if (!_lastOcrResult.IsSuccess || string.IsNullOrEmpty(_lastOcrResult.Text))
             {

@@ -255,7 +255,7 @@ Plugins\ThirdPlugins\STranslate.Plugin.Translate.DeepLX\.artifacts\plugins\STran
 | 断点不命中 | 运行中的 `STranslate.exe` 是否加载了你刚构建的目录；dll 旁边是否有 pdb；是否存在同 `PluginID` 的更高版本插件被优先加载。 |
 | 设置保存后重启丢失 | 是否在设置 VM 中调用了 `SaveSettingStorage<T>()`；是否调试了另一个数据目录（便携/漫游目录不一致）。 |
 | ESC 或关闭窗口无法取消请求 | 是否把 `CancellationToken` 传给所有 HTTP、流式读取、下载和音频操作。 |
-| 图片翻译无法选中 OCR 区域 | OCR 结果是否填充了每个 `OcrContent.BoxPoints`；仅返回纯文本无法支持框选和标注。 |
+| 图片翻译无法选中 OCR 区域 | OCR 插件是否实现 `IOcrCapabilityProvider` 并声明 `ImageTranslation + BoundingBox`；OCR 结果是否填充 `OcrContent.BoxPoints` 或结构化 `Regions` 中的行框；仅返回纯文本无法支持框选和标注。 |
 | 日志里有 `ReflectionTypeLoadException` | 依赖 dll 是否随插件输出；依赖版本是否与宿主可加载版本兼容；Release 打包是否遗漏内容文件。 |
 
 ## 发布前检查

@@ -216,7 +216,7 @@ public partial class Settings : ObservableObject
 
     #region Layout Analysis
     [JsonConverter(typeof(LayoutAnalysisModeJsonConverter))]
-    [ObservableProperty] public partial LayoutAnalysisMode LayoutAnalysisMode { get; set; } = LayoutAnalysisMode.Smart;
+    [ObservableProperty] public partial LayoutAnalysisMode LayoutAnalysisMode { get; set; } = LayoutAnalysisMode.Auto;
     #endregion
 
     #region OCR Settings
@@ -441,8 +441,8 @@ public partial class Settings : ObservableObject
 
     internal void NormalizeLayoutAnalysisMode()
     {
-        if (LayoutAnalysisMode is not (LayoutAnalysisMode.Smart or LayoutAnalysisMode.NoMerge))
-            LayoutAnalysisMode = LayoutAnalysisMode.Smart;
+        if (LayoutAnalysisMode is not (LayoutAnalysisMode.Auto or LayoutAnalysisMode.Provider or LayoutAnalysisMode.Smart or LayoutAnalysisMode.NoMerge))
+            LayoutAnalysisMode = LayoutAnalysisMode.Auto;
     }
 
     #endregion
@@ -731,6 +731,8 @@ public enum CrosswordFetchFailedFallbackTarget
 
 public enum LayoutAnalysisMode
 {
+    Auto,
+    Provider,
     Smart,
     NoMerge,
 }

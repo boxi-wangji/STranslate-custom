@@ -7,7 +7,7 @@ using System.Windows.Controls;
 
 namespace STranslate.Plugin.Ocr.Baidu;
 
-public class Main : ObservableObject, IOcrPlugin
+public class Main : ObservableObject, IOcrPlugin, IOcrCapabilityProvider
 {
     private Control? _settingUi;
     private SettingsViewModel? _viewModel;
@@ -63,6 +63,9 @@ public class Main : ObservableObject, IOcrPlugin
             ],
             _ => Enum.GetValues<LangEnum>()
         };
+
+    public OcrCapabilities Capabilities =>
+        OcrCapabilities.BoundingBox | OcrCapabilities.ImageTranslation;
 
     public Control GetSettingUI()
     {

@@ -215,8 +215,12 @@ public partial class WelcomeSetupViewModel : ObservableObject, IDisposable
         service.IsEnabled = true;
         SelectedOcrService = service;
 
-        if (SelectedImageTranslateOcrService == null)
+        if (SelectedImageTranslateOcrService == null &&
+            OcrService.IsImageTranslateOcrService(service))
+        {
+            RefreshOcrServiceOptions();
             SelectedImageTranslateOcrService = service;
+        }
     }
 
     [RelayCommand]
@@ -290,7 +294,7 @@ public partial class WelcomeSetupViewModel : ObservableObject, IDisposable
 
     private void RefreshOcrServiceOptions()
     {
-        ReplaceItems(AvailableOcrServices, OcrService.Services);
+        ReplaceItems(AvailableOcrServices, OcrService.GetImageTranslateOcrServices());
         OnPropertyChanged(nameof(SelectedImageTranslateOcrService));
     }
 

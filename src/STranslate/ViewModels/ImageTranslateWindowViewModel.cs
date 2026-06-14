@@ -54,7 +54,8 @@ public partial class ImageTranslateWindowViewModel : ObservableObject, IDisposab
         _snackbar = snackbar;
         _notification = notification;
 
-        OcrEngines = _ocrService.Services;
+        OcrEngines = [];
+        RefreshOcrEngines();
         RefreshSelectedOcrEngine();
         _transCollectionView = new() { Source = _translateService.Services };
         _transCollectionView.Filter += OnTransFilter;
@@ -172,7 +173,10 @@ public partial class ImageTranslateWindowViewModel : ObservableObject, IDisposab
             }
 
             var data = Utilities.ToBytes(bitmap, Settings.GetImageFormat());
-            _lastOcrResult = await ocrSvc.RecognizeAsync(new OcrRequest(data, Settings.OcrLanguage), cancellationToken);
+            _lastOcrResult = await ocrSvc.RecognizeAsync(
+                new OcrRequest(data, Settings.OcrLanguage, bitmap.Width, bitmap.Height),
+                cancellationToken);
+            Utilities.NormalizeOcrCoordinates(_lastOcrResult, bitmap.Width, bitmap.Height);
 
             if (!_lastOcrResult.IsSuccess || string.IsNullOrEmpty(_lastOcrResult.Text))
             {
@@ -190,7 +194,7 @@ public partial class ImageTranslateWindowViewModel : ObservableObject, IDisposab
             //var originalAnnotatedImage = GenerateAnnotatedImage(_lastOcrResult, _sourceImage);
 
             // 版面分析
-            ApplyLayoutAnalysis(_lastOcrResult);
+            var layoutBlocks = ApplyLayoutAnalysis(_lastOcrResult);
 
             // 生成版面分析后的标注图像（显示合并后的边框）
             _annotatedImage = GenerateAnnotatedImage(_lastOcrResult, _sourceImage);
@@ -203,31 +207,34 @@ public partial class ImageTranslateWindowViewModel : ObservableObject, IDisposab
 
             ProcessRingText = _i18n.GetTranslation("TranslatingText");
 
-            await Parallel.ForEachAsync(_lastOcrResult.OcrContents, cancellationToken, async (content, cancellationToken) =>
+            await Parallel.ForEachAsync(layoutBlocks, cancellationToken, async (block, cancellationToken) =>
             {
                 var (isSuccess, source, target) = await LanguageDetector
                     .GetLanguageAsync(
-                        content.Text,
+                        block.Text,
                         Settings.ImageTranslateSourceLang,
                         Settings.ImageTranslateTargetLang,
                         cancellationToken)
                     .ConfigureAwait(false);
                 if (!isSuccess)
                 {
-                    _logger.LogWarning($"Language detection failed for text: {content.Text}");
+                    _logger.LogWarning($"Language detection failed for text: {block.Text}");
                     _snackbar.ShowWarning(_i18n.GetTranslation("LanguageDetectionFailed"));
                     return;
                 }
-                if (string.IsNullOrWhiteSpace(content.Text))
+                if (string.IsNullOrWhiteSpace(block.Text))
                     return;
 
                 var result = new TranslateResult();
-                await tranSvc.TranslateAsync(new TranslateRequest(content.Text, source, target), result, cancellationToken);
-                content.Text = result.IsSuccess ? result.Text : content.Text;
+                await tranSvc.TranslateAsync(new TranslateRequest(block.Text, source, target), result, cancellationToken);
+                block.Text = result.IsSuccess ? result.Text : block.Text;
             });
 
+            _lastOcrResult.OcrContents.Clear();
+            _lastOcrResult.OcrContents.AddRange(layoutBlocks.Select(x => x.ToOcrContent()));
+
             // 生成翻译结果图像（在原图上覆盖翻译文本）
-            _resultImage = GenerateTranslatedImage(_lastOcrResult, Utilities.ToBitmapImage(bitmap, Settings.GetImageFormat()));
+            _resultImage = GenerateTranslatedImage(layoutBlocks, Utilities.ToBitmapImage(bitmap, Settings.GetImageFormat()));
             Result = _lastOcrResult.Text;
 
             DisplayImage = Settings.IsImTranShowingAnnotated ? _annotatedImage : _resultImage;
@@ -498,6 +505,13 @@ public partial class ImageTranslateWindowViewModel : ObservableObject, IDisposab
 
     private bool _isUpdatingOcrEngine = false;
 
+    private void RefreshOcrEngines()
+    {
+        OcrEngines.Clear();
+        foreach (var service in _ocrService.GetImageTranslateOcrServices())
+            OcrEngines.Add(service);
+    }
+
     private void RefreshSelectedOcrEngine()
     {
         _isUpdatingOcrEngine = true;
@@ -536,6 +550,7 @@ public partial class ImageTranslateWindowViewModel : ObservableObject, IDisposab
             }
         }
 
+        RefreshOcrEngines();
         RefreshSelectedOcrEngine();
     }
 
@@ -562,7 +577,8 @@ public partial class ImageTranslateWindowViewModel : ObservableObject, IDisposab
         }
         else
         {
-            _ocrService.ActiveImTranOcr(newValue);
+            if (_ocrService.IsImageTranslateOcrService(newValue))
+                _ocrService.ActiveImTranOcr(newValue);
         }
     }
 
@@ -606,13 +622,13 @@ public partial class ImageTranslateWindowViewModel : ObservableObject, IDisposab
     /// <param name="ocrResult">包含翻译后文本的OCR结果</param>
     /// <param name="image">原始图像</param>
     /// <returns>覆盖翻译文本后的图像</returns>
-    private BitmapSource GenerateTranslatedImage(OcrResult ocrResult, BitmapSource? image)
+    private BitmapSource GenerateTranslatedImage(IReadOnlyList<OcrLayoutBlock> layoutBlocks, BitmapSource? image)
     {
         ArgumentNullException.ThrowIfNull(image);
 
         // 没有位置信息的话返回原图
-        if (ocrResult?.OcrContents == null ||
-            ocrResult.OcrContents.All(x => x.BoxPoints?.Count == 0))
+        if (layoutBlocks.Count == 0 ||
+            layoutBlocks.All(x => x.BoxPoints.Count == 0))
         {
             return image;
         }
@@ -655,9 +671,9 @@ public partial class ImageTranslateWindowViewModel : ObservableObject, IDisposab
             drawingContext.DrawImage(image, new Rect(0, 0, image.PixelWidth, image.PixelHeight));
 
             // 为每个文本块创建覆盖层并绘制翻译文本
-            foreach (var item in ocrResult.OcrContents)
+            foreach (var item in layoutBlocks)
             {
-                if (item.BoxPoints == null || item.BoxPoints.Count == 0 || string.IsNullOrEmpty(item.Text))
+                if (item.BoxPoints.Count == 0 || string.IsNullOrEmpty(item.Text))
                     continue;
 
                 // 传递 pixelsPerDip 以确保文字渲染清晰度
@@ -689,20 +705,30 @@ public partial class ImageTranslateWindowViewModel : ObservableObject, IDisposab
     /// <param name="drawingContext">绘图上下文</param>
     /// <param name="content">包含翻译文本和位置信息的内容</param>
     /// <param name="pixelsPerDip">DPI缩放比例</param>
-    private void DrawTranslatedTextOverlay(DrawingContext drawingContext, OcrContent content, double pixelsPerDip)
+    private void DrawTranslatedTextOverlay(DrawingContext drawingContext, OcrLayoutBlock content, double pixelsPerDip)
     {
-        var boundingRect = CalculateBoundingRect(content.BoxPoints!);
+        var boundingRect = CalculateBoundingRect(content.BoxPoints);
 
         // 绘制白色背景覆盖原文
         var backgroundBrush = new SolidColorBrush(Color.FromArgb(240, 255, 255, 255));
         backgroundBrush.Freeze();
 
-        var expandedRect = new Rect(
-            boundingRect.Left - 2,
-            boundingRect.Top - 2,
-            boundingRect.Width + 4,
-            boundingRect.Height + 4);
-        drawingContext.DrawRectangle(backgroundBrush, null, expandedRect);
+        var eraseBoxes = content.LineBoxPoints.Count > 0
+            ? content.LineBoxPoints
+            : [content.BoxPoints];
+        foreach (var boxPoints in eraseBoxes)
+        {
+            if (boxPoints.Count == 0)
+                continue;
+
+            var eraseRect = CalculateBoundingRect(boxPoints);
+            var expandedRect = new Rect(
+                eraseRect.Left - 2,
+                eraseRect.Top - 2,
+                eraseRect.Width + 4,
+                eraseRect.Height + 4);
+            drawingContext.DrawRectangle(backgroundBrush, null, expandedRect);
+        }
 
         // 创建并绘制适配的文本
         var textBrush = new SolidColorBrush(Colors.Black);
@@ -905,14 +931,16 @@ public partial class ImageTranslateWindowViewModel : ObservableObject, IDisposab
     /// 应用版面分析，直接修改 OCR 结果中的内容分组。
     /// </summary>
     /// <param name="ocrResult">OCR 识别结果</param>
-    private void ApplyLayoutAnalysis(OcrResult ocrResult)
+    private List<OcrLayoutBlock> ApplyLayoutAnalysis(OcrResult ocrResult)
     {
 #if DEBUG
         var originalCount = ocrResult.OcrContents.Count;
         System.Diagnostics.Debug.WriteLine($"原始文本块数量: {originalCount}");
 #endif
 
-        OcrLayoutAnalyzer.Apply(ocrResult, Settings.LayoutAnalysisMode);
+        var layoutBlocks = OcrLayoutAnalyzer.AnalyzeBlocks(ocrResult, Settings.LayoutAnalysisMode);
+        ocrResult.OcrContents.Clear();
+        ocrResult.OcrContents.AddRange(layoutBlocks.Select(x => x.ToOcrContent()));
 
 #if DEBUG
         var finalCount = ocrResult.OcrContents.Count;
@@ -921,11 +949,15 @@ public partial class ImageTranslateWindowViewModel : ObservableObject, IDisposab
             System.Diagnostics.Debug.WriteLine($"合并率: {(originalCount - finalCount) / (double)originalCount * 100:F1}%");
 
         // 输出每个合并后的文本块
-        for (int i = 0; i < ocrResult.OcrContents.Count; i++)
+        for (int i = 0; i < layoutBlocks.Count; i++)
         {
-            System.Diagnostics.Debug.WriteLine($"文本块 {i + 1}: {ocrResult.OcrContents[i].Text}");
+            var block = layoutBlocks[i];
+            System.Diagnostics.Debug.WriteLine(
+                $"文本块 {i + 1}: [{block.Source}] confidence={block.Confidence:F2}, lines={block.LineBoxPoints.Count}, text={block.Text}");
         }
 #endif
+
+        return layoutBlocks;
     }
 
     /// <summary>

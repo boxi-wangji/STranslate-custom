@@ -50,7 +50,16 @@
 ### SDK 核心模型
 - `PluginMetaData`：插件静态元信息 + 运行时路径与类型。
 - `Service`：插件实例容器，含 `ServiceID`、`DisplayName`、`Options`。
-- `TranslateRequest` / `TranslateResult`、`DictionaryResult`、`OcrResult`、`VocabularyResult`：能力结果模型。
+- `TranslateRequest` / `TranslateResult`、`DictionaryResult`、`OcrRequest` / `OcrResult`、`VocabularyResult`：能力结果模型。
+- OCR 模型：
+  - `OcrRequest.PixelWidth` / `PixelHeight` 由宿主在截图 OCR、OCR 窗口和图片翻译中传入真实图片尺寸，旧插件可忽略。
+  - `OcrResult.OcrContents` 是兼容旧插件的扁平文本块列表。
+  - `OcrResult.Regions` 可返回结构化布局，层级为 `OcrRegion -> OcrParagraph -> OcrContent`。
+  - `OcrContent.CoordinateUnit` 支持 `Pixel` 和 `Normalized`，宿主在 OCR 返回后统一换算为像素坐标。
+- OCR 能力声明：
+  - `IOcrCapabilityProvider` 是可选接口，旧插件不实现时默认无额外能力声明。
+  - 图片翻译 OCR 服务必须声明 `OcrCapabilities.ImageTranslation | OcrCapabilities.BoundingBox`，否则不会出现在图片翻译 OCR 选择列表。
+  - 服务商能返回段落/区域结构时应声明 `OcrCapabilities.StructuredLayout` 并填充 `OcrResult.Regions`。
 - `LangEnum`：语言枚举，当前包含 `Uzbek`；新增语言时需要同步主程序语言检测、内置插件语言映射和本地化文本。
 
 ### HTTP 与流式接口
@@ -67,6 +76,7 @@
 - 大模型翻译：优先继承 `LlmTranslatePluginBase`（内置 Prompt 选择机制）。
 - 词典类：继承 `DictionaryPluginBase`。
 - OCR/TTS/生词本：分别实现 `IOcrPlugin`、`ITtsPlugin`、`IVocabularyPlugin`。
+- OCR 插件如果希望参与图片翻译或返回结构化段落，额外实现 `IOcrCapabilityProvider` 并按真实能力声明 `OcrCapabilities`。
 
 ### 官方内置插件维护要点
 - Microsoft 内置翻译：

@@ -1035,7 +1035,10 @@ public partial class MainWindowViewModel : ObservableObject, IDisposable
         {
             CursorHelper.Execute();
             var data = Utilities.ToBytes(bitmap, Settings.GetImageFormat());
-            var result = await ocrPlugin.RecognizeAsync(new OcrRequest(data, LangEnum.Auto), cancellationToken);
+            var result = await ocrPlugin.RecognizeAsync(
+                new OcrRequest(data, LangEnum.Auto, bitmap.Width, bitmap.Height),
+                cancellationToken);
+            Utilities.NormalizeOcrCoordinates(result, bitmap.Width, bitmap.Height);
 
             if (!result.IsSuccess || string.IsNullOrEmpty(result.Text))
                 return;
@@ -1151,7 +1154,10 @@ public partial class MainWindowViewModel : ObservableObject, IDisposable
         {
             CursorHelper.Execute();
             var data = Utilities.ToBytes(bitmap, Settings.GetImageFormat());
-            var result = await ocrPlugin.RecognizeAsync(new OcrRequest(data, LangEnum.Auto), cancellationToken);
+            var result = await ocrPlugin.RecognizeAsync(
+                new OcrRequest(data, LangEnum.Auto, bitmap.Width, bitmap.Height),
+                cancellationToken);
+            Utilities.NormalizeOcrCoordinates(result, bitmap.Width, bitmap.Height);
             if (result.IsSuccess && !string.IsNullOrEmpty(result.Text))
             {
                 ClipboardHelper.SetText(HandleSilentOcrText(result.Text));

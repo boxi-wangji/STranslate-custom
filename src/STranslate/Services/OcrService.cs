@@ -28,7 +28,9 @@ public partial class OcrService : BaseService
     }
 
     private void InitialOtherService()
-        => ImageTranslateOcrService = Services.FirstOrDefault(s => s.ServiceID == _serviceSettings.ImageTranslateOcrSvcID);
+        => ImageTranslateOcrService = Services.FirstOrDefault(s =>
+            s.ServiceID == _serviceSettings.ImageTranslateOcrSvcID &&
+            IsImageTranslateOcrService(s));
 
     public override async Task<bool> DeleteAsync(Service service)
     {
@@ -45,6 +47,9 @@ public partial class OcrService : BaseService
 
     internal void ActiveImTranOcr(Service svc)
     {
+        if (!IsImageTranslateOcrService(svc))
+            return;
+
         ImageTranslateOcrService = svc;
         _serviceSettings.ImageTranslateOcrSvcID = svc.ServiceID;
         _serviceSettings.Save();
@@ -58,8 +63,16 @@ public partial class OcrService : BaseService
     }
 
     internal Service? GetImageTranslateOcrServiceOrDefault()
-        => ImageTranslateOcrService ?? Services.FirstOrDefault(s => s.IsEnabled);
+        => IsImageTranslateOcrService(ImageTranslateOcrService)
+            ? ImageTranslateOcrService
+            : Services.FirstOrDefault(s => s.IsEnabled && IsImageTranslateOcrService(s));
 
     internal IOcrPlugin? GetImageTranslateOcrSvcOrDefault()
         => GetImageTranslateOcrServiceOrDefault()?.Plugin as IOcrPlugin;
+
+    internal bool IsImageTranslateOcrService(Service? service) =>
+        service?.Plugin is IOcrPlugin plugin && plugin.SupportsImageTranslation();
+
+    internal IEnumerable<Service> GetImageTranslateOcrServices() =>
+        Services.Where(IsImageTranslateOcrService);
 }

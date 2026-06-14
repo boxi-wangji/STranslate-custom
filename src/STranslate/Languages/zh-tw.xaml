@@ -601,6 +601,8 @@
     <sys:String x:Key="ProxyTypeSocks5">Socks5代理</sys:String>
     <sys:String x:Key="ProxyTypeNone">無代理</sys:String>
 
+    <sys:String x:Key="LayoutAnalysisModeAuto">自動</sys:String>
+    <sys:String x:Key="LayoutAnalysisModeProvider">服務商分段</sys:String>
     <sys:String x:Key="LayoutAnalysisModeSmart">智慧分段</sys:String>
     <sys:String x:Key="LayoutAnalysisModeNoMerge">不合併</sys:String>
 

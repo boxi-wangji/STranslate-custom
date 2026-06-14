@@ -4,29 +4,57 @@ namespace STranslate.Core;
 
 internal static class OcrLayoutAnalyzer
 {
+    private const double MinSmartMergeConfidence = 0.48;
+
     internal static void Apply(OcrResult ocrResult, LayoutAnalysisMode mode)
     {
-        if (ocrResult.OcrContents.Count == 0 || !Utilities.HasBoxPoints(ocrResult))
+        if ((ocrResult.OcrContents.Count == 0 && ocrResult.Regions.Count == 0) || !Utilities.HasBoxPoints(ocrResult))
             return;
 
-        var contents = Analyze(ocrResult.OcrContents, mode);
+        var contents = AnalyzeBlocks(ocrResult, mode).Select(x => x.ToOcrContent()).ToList();
         ocrResult.OcrContents.Clear();
         ocrResult.OcrContents.AddRange(contents);
     }
 
     internal static List<OcrContent> Analyze(IReadOnlyList<OcrContent> contents, LayoutAnalysisMode mode)
+        => AnalyzeBlocks(contents, mode).Select(x => x.ToOcrContent()).ToList();
+
+    internal static List<OcrLayoutBlock> AnalyzeBlocks(OcrResult ocrResult, LayoutAnalysisMode mode)
     {
-        if (mode == LayoutAnalysisMode.NoMerge)
-            return CloneContents(contents);
+        return mode switch
+        {
+            LayoutAnalysisMode.NoMerge => CreateNoMergeBlocks(GetFlatContents(ocrResult)),
+            LayoutAnalysisMode.Provider => HasProviderLayout(ocrResult)
+                ? CreateProviderBlocks(ocrResult)
+                : CreateProviderFallbackBlocks(ocrResult),
+            LayoutAnalysisMode.Auto => HasProviderLayout(ocrResult)
+                ? CreateProviderBlocks(ocrResult)
+                : AnalyzeSmart(GetSmartSourceItems(ocrResult)),
+            _ => AnalyzeSmart(GetSmartSourceItems(ocrResult))
+        };
+    }
+
+    private static List<OcrLayoutBlock> CreateProviderFallbackBlocks(OcrResult ocrResult)
+    {
+#if DEBUG
+        System.Diagnostics.Debug.WriteLine("Provider layout requested but OCR result has no structured layout. Falling back to NoMerge.");
+#endif
+        return CreateNoMergeBlocks(GetFlatContents(ocrResult));
+    }
+
+    internal static List<OcrLayoutBlock> AnalyzeBlocks(IReadOnlyList<OcrContent> contents, LayoutAnalysisMode mode)
+    {
+        if (mode is LayoutAnalysisMode.NoMerge or LayoutAnalysisMode.Provider)
+            return CreateNoMergeBlocks(contents);
 
         var items = CreateLayoutItems(contents);
         if (items.Count == 0)
-            return CloneContents(contents);
+            return CreateNoMergeBlocks(contents);
 
         return AnalyzeSmart(items);
     }
 
-    private static List<OcrContent> AnalyzeSmart(List<LayoutItem> items)
+    private static List<OcrLayoutBlock> AnalyzeSmart(List<LayoutItem> items)
     {
         var lineSegments = BuildLineSegments(items);
         if (lineSegments.Count == 0)
@@ -40,7 +68,7 @@ internal static class OcrLayoutAnalyzer
             .ToList();
     }
 
-    private static List<OcrContent> AnalyzeRegion(LayoutRegion region, LayoutMetrics metrics)
+    private static List<OcrLayoutBlock> AnalyzeRegion(LayoutRegion region, LayoutMetrics metrics)
     {
         var paragraphs = new List<ParagraphGroup>();
 
@@ -50,15 +78,85 @@ internal static class OcrLayoutAnalyzer
             if (target == null)
                 paragraphs.Add(new ParagraphGroup(line));
             else
-                target.Add(line);
+                target.Paragraph.Add(line, target.Confidence);
         }
 
         return paragraphs
             .OrderBy(x => x.Bounds.Top)
             .ThenBy(x => x.Bounds.Left)
-            .Select(x => x.ToOcrContent())
+            .Select(x => x.ToLayoutBlock())
             .ToList();
     }
+
+    private static bool HasProviderLayout(OcrResult ocrResult) =>
+        ocrResult.Regions.Any(region => region.Paragraphs.Any(paragraph => paragraph.Lines.Count > 0));
+
+    private static List<OcrContent> GetFlatContents(OcrResult ocrResult)
+    {
+        if (ocrResult.OcrContents.Count > 0)
+            return ocrResult.OcrContents;
+
+        return ocrResult.Regions
+            .SelectMany(region => region.Paragraphs)
+            .SelectMany(paragraph => paragraph.Lines)
+            .ToList();
+    }
+
+    private static List<LayoutItem> GetSmartSourceItems(OcrResult ocrResult)
+    {
+        var contents = GetFlatContents(ocrResult);
+        return CreateLayoutItems(contents);
+    }
+
+    private static List<OcrLayoutBlock> CreateProviderBlocks(OcrResult ocrResult)
+    {
+        var blocks = new List<OcrLayoutBlock>();
+
+        foreach (var region in ocrResult.Regions)
+        {
+            foreach (var paragraph in region.Paragraphs)
+            {
+                var lines = paragraph.Lines
+                    .Where(line => !string.IsNullOrWhiteSpace(line.Text))
+                    .ToList();
+                if (lines.Count == 0)
+                    continue;
+
+                var text = JoinProviderParagraphText(lines);
+                var lineBoxPoints = lines
+                    .Where(line => line.BoxPoints.Count > 0)
+                    .Select(line => CloneBoxPoints(line.BoxPoints))
+                    .ToList();
+                var boxPoints = paragraph.BoxPoints.Count > 0
+                    ? CloneBoxPoints(paragraph.BoxPoints)
+                    : CreateUnionBoxPoints(lineBoxPoints);
+
+                blocks.Add(new OcrLayoutBlock
+                {
+                    Text = text,
+                    BoxPoints = boxPoints,
+                    LineBoxPoints = lineBoxPoints,
+                    Source = OcrLayoutSource.Provider,
+                    Confidence = 1
+                });
+            }
+        }
+
+        return blocks;
+    }
+
+    private static List<OcrLayoutBlock> CreateNoMergeBlocks(IReadOnlyList<OcrContent> contents) =>
+        contents
+            .Where(content => !string.IsNullOrWhiteSpace(content.Text))
+            .Select(content => new OcrLayoutBlock
+            {
+                Text = content.Text,
+                BoxPoints = CloneBoxPoints(content.BoxPoints),
+                LineBoxPoints = content.BoxPoints.Count > 0 ? [CloneBoxPoints(content.BoxPoints)] : [],
+                Source = OcrLayoutSource.NoMerge,
+                Confidence = 1
+            })
+            .ToList();
 
     private static List<LayoutRegion> BuildLayoutRegions(List<LineSegment> lineSegments, LayoutMetrics metrics)
     {
@@ -191,12 +289,12 @@ internal static class OcrLayoutAnalyzer
         return topDelta <= metrics.LineHeight * 2 && hasVerticalContact;
     }
 
-    private static ParagraphGroup? FindBestParagraph(
+    private static ParagraphCandidate? FindBestParagraph(
         LineSegment line,
         List<ParagraphGroup> paragraphs,
         LayoutMetrics metrics)
     {
-        ParagraphGroup? bestParagraph = null;
+        ParagraphCandidate? bestCandidate = null;
         var bestScore = double.NegativeInfinity;
 
         foreach (var paragraph in paragraphs)
@@ -205,26 +303,32 @@ internal static class OcrLayoutAnalyzer
             if (line.Bounds.Top < lastLine.Bounds.Top)
                 continue;
 
-            if (!CanAppendToParagraph(lastLine, line, metrics))
+            if (!CanAppendToParagraph(lastLine, line, metrics, out var confidence))
                 continue;
 
             var horizontalScore = HorizontalOverlapRatio(lastLine.Bounds, line.Bounds) * 3;
             var leftScore = 1 - Math.Min(1, Math.Abs(lastLine.Bounds.Left - line.Bounds.Left) / Math.Max(metrics.LineHeight, 1));
             var gapScore = 1 - Math.Min(1, VerticalGap(lastLine.Bounds, line.Bounds) / Math.Max(metrics.LineHeight, 1));
-            var score = horizontalScore + leftScore + gapScore;
+            var score = horizontalScore + leftScore + gapScore + confidence;
 
             if (score > bestScore)
             {
                 bestScore = score;
-                bestParagraph = paragraph;
+                bestCandidate = new ParagraphCandidate(paragraph, confidence);
             }
         }
 
-        return bestParagraph;
+        return bestCandidate;
     }
 
-    private static bool CanAppendToParagraph(LineSegment previous, LineSegment current, LayoutMetrics metrics)
+    private static bool CanAppendToParagraph(
+        LineSegment previous,
+        LineSegment current,
+        LayoutMetrics metrics,
+        out double confidence)
     {
+        confidence = 0;
+
         var verticalGap = VerticalGap(previous.Bounds, current.Bounds);
         if (verticalGap > metrics.LineHeight * 1.25)
             return false;
@@ -233,7 +337,10 @@ internal static class OcrLayoutAnalyzer
             return false;
 
         if (IsListStart(previous.Text) && current.Bounds.Left > previous.Bounds.Left + metrics.LineHeight * 0.8)
+        {
+            confidence = 0.95;
             return true;
+        }
 
         if (Math.Max(previous.Bounds.Height, current.Bounds.Height) >
             Math.Min(previous.Bounds.Height, current.Bounds.Height) * 1.45)
@@ -248,7 +355,10 @@ internal static class OcrLayoutAnalyzer
             return false;
 
         if (ShouldMergeHyphenated(previous.Text, current.Text))
+        {
+            confidence = 0.95;
             return true;
+        }
 
         if (LooksLikeGridCell(previous, metrics) && LooksLikeGridCell(current, metrics))
             return false;
@@ -260,7 +370,14 @@ internal static class OcrLayoutAnalyzer
         if (Math.Abs(indentDelta) > metrics.LineHeight * 2.5 && horizontalOverlap < 0.7)
             return false;
 
-        return true;
+        var leftAffinity = 1 - Math.Min(1, leftDelta / Math.Max(metrics.LineHeight * 1.2, 1));
+        var gapAffinity = 1 - Math.Min(1, verticalGap / Math.Max(metrics.LineHeight * 1.25, 1));
+        var heightAffinity = Math.Min(previous.Bounds.Height, current.Bounds.Height) /
+                             Math.Max(Math.Max(previous.Bounds.Height, current.Bounds.Height), 1);
+        var horizontalAffinity = Math.Max(horizontalOverlap, leftAffinity);
+        confidence = Math.Clamp(horizontalAffinity * 0.45 + gapAffinity * 0.35 + heightAffinity * 0.20, 0, 1);
+
+        return confidence >= MinSmartMergeConfidence;
     }
 
     private static List<LineSegment> BuildLineSegments(List<LayoutItem> items)
@@ -338,31 +455,28 @@ internal static class OcrLayoutAnalyzer
             .Select(x => x!)
             .ToList();
 
-    private static OcrContent CreateMergedContent(string text, IReadOnlyList<LayoutItem> items)
+    private static List<BoxPoint> CreateBoxPoints(Bounds bounds) =>
+    [
+        new((float)bounds.Left, (float)bounds.Top),
+        new((float)bounds.Right, (float)bounds.Top),
+        new((float)bounds.Right, (float)bounds.Bottom),
+        new((float)bounds.Left, (float)bounds.Bottom)
+    ];
+
+    private static List<BoxPoint> CreateUnionBoxPoints(IReadOnlyList<List<BoxPoint>> boxPointGroups)
     {
-        var bounds = Bounds.Union(items.Select(x => x.Bounds));
-        return new OcrContent
-        {
-            Text = text.Trim(),
-            BoxPoints =
-            [
-                new((float)bounds.Left, (float)bounds.Top),
-                new((float)bounds.Right, (float)bounds.Top),
-                new((float)bounds.Right, (float)bounds.Bottom),
-                new((float)bounds.Left, (float)bounds.Bottom)
-            ]
-        };
+        var bounds = boxPointGroups
+            .Where(points => points.Count > 0)
+            .Select(Bounds.From)
+            .ToList();
+
+        return bounds.Count == 0
+            ? []
+            : CreateBoxPoints(Bounds.Union(bounds));
     }
 
-    private static List<OcrContent> CloneContents(IReadOnlyList<OcrContent> contents) =>
-        contents.Select(CloneContent).ToList();
-
-    private static OcrContent CloneContent(OcrContent content) =>
-        new()
-        {
-            Text = content.Text,
-            BoxPoints = content.BoxPoints.Select(point => new BoxPoint(point.X, point.Y)).ToList()
-        };
+    private static List<BoxPoint> CloneBoxPoints(IReadOnlyList<BoxPoint> boxPoints) =>
+        boxPoints.Select(point => new BoxPoint(point.X, point.Y)).ToList();
 
     private static string JoinLineText(IReadOnlyList<LayoutItem> items)
     {
@@ -379,6 +493,26 @@ internal static class OcrLayoutAnalyzer
     }
 
     private static string JoinParagraphText(IReadOnlyList<LineSegment> lines)
+    {
+        var text = lines[0].Text;
+        for (var i = 1; i < lines.Count; i++)
+        {
+            if (ShouldMergeHyphenated(text, lines[i].Text))
+            {
+                text = text[..^1] + lines[i].Text;
+                continue;
+            }
+
+            if (NeedsSpace(text, lines[i].Text))
+                text += " ";
+
+            text += lines[i].Text;
+        }
+
+        return text;
+    }
+
+    private static string JoinProviderParagraphText(IReadOnlyList<OcrContent> lines)
     {
         var text = lines[0].Text;
         for (var i = 1; i < lines.Count; i++)
@@ -553,22 +687,37 @@ internal static class OcrLayoutAnalyzer
         }
     }
 
+    private sealed record ParagraphCandidate(ParagraphGroup Paragraph, double Confidence);
+
     private sealed class ParagraphGroup
     {
         internal ParagraphGroup(LineSegment line) => Lines.Add(line);
 
         internal List<LineSegment> Lines { get; } = [];
 
+        internal double Confidence { get; private set; } = 1;
+
         internal LineSegment LastLine => Lines[^1];
 
         internal Bounds Bounds => Bounds.Union(Lines.Select(x => x.Bounds));
 
-        internal void Add(LineSegment line) => Lines.Add(line);
-
-        internal OcrContent ToOcrContent()
+        internal void Add(LineSegment line, double confidence)
         {
-            var items = Lines.SelectMany(x => x.Items).OrderBy(x => x.Index).ToList();
-            return CreateMergedContent(JoinParagraphText(Lines), items);
+            Lines.Add(line);
+            Confidence = Math.Min(Confidence, confidence);
+        }
+
+        internal OcrLayoutBlock ToLayoutBlock()
+        {
+            var bounds = Bounds.Union(Lines.Select(x => x.Bounds));
+            return new OcrLayoutBlock
+            {
+                Text = JoinParagraphText(Lines),
+                BoxPoints = CreateBoxPoints(bounds),
+                LineBoxPoints = Lines.Select(line => CreateBoxPoints(line.Bounds)).ToList(),
+                Source = OcrLayoutSource.Smart,
+                Confidence = Confidence
+            };
         }
     }
 

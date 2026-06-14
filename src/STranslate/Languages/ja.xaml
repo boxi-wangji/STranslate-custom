@@ -584,6 +584,8 @@
     <sys:String x:Key="ProxyTypeSocks5">Socks5プロキシ</sys:String>
     <sys:String x:Key="ProxyTypeNone">プロキシなし</sys:String>
 
+    <sys:String x:Key="LayoutAnalysisModeAuto">自動</sys:String>
+    <sys:String x:Key="LayoutAnalysisModeProvider">サービス分割</sys:String>
     <sys:String x:Key="LayoutAnalysisModeSmart">スマート分割</sys:String>
     <sys:String x:Key="LayoutAnalysisModeNoMerge">結合しない</sys:String>
 

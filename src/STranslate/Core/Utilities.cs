@@ -984,7 +984,140 @@ public class Utilities
     public static bool HasBoxPoints(OcrResult ocrResult)
     {
         return ocrResult.OcrContents != null &&
-               ocrResult.OcrContents.Any(content => content.BoxPoints != null && content.BoxPoints.Count > 0);
+               (ocrResult.OcrContents.Any(content => content.BoxPoints != null && content.BoxPoints.Count > 0) ||
+                ocrResult.Regions.Any(region =>
+                    region.BoxPoints.Count > 0 ||
+                    region.Paragraphs.Any(paragraph =>
+                        paragraph.BoxPoints.Count > 0 ||
+                        paragraph.Lines.Any(line => line.BoxPoints.Count > 0))));
+    }
+
+    public static void NormalizeOcrCoordinates(OcrResult ocrResult, int pixelWidth, int pixelHeight)
+    {
+        foreach (var content in ocrResult.OcrContents)
+        {
+            NormalizeBoxPoints(content.BoxPoints, content.CoordinateUnit, pixelWidth, pixelHeight);
+            content.CoordinateUnit = OcrCoordinateUnit.Pixel;
+        }
+
+        foreach (var region in ocrResult.Regions)
+        {
+            NormalizeBoxPoints(region.BoxPoints, region.CoordinateUnit, pixelWidth, pixelHeight);
+            region.CoordinateUnit = OcrCoordinateUnit.Pixel;
+
+            foreach (var paragraph in region.Paragraphs)
+            {
+                NormalizeBoxPoints(paragraph.BoxPoints, paragraph.CoordinateUnit, pixelWidth, pixelHeight);
+                paragraph.CoordinateUnit = OcrCoordinateUnit.Pixel;
+
+                foreach (var line in paragraph.Lines)
+                {
+                    NormalizeBoxPoints(line.BoxPoints, line.CoordinateUnit, pixelWidth, pixelHeight);
+                    line.CoordinateUnit = OcrCoordinateUnit.Pixel;
+                }
+            }
+        }
+
+        if (ocrResult.OcrContents.Count == 0)
+            ProjectStructuredLayoutToContents(ocrResult);
+    }
+
+    private static void NormalizeBoxPoints(
+        List<BoxPoint> boxPoints,
+        OcrCoordinateUnit coordinateUnit,
+        int pixelWidth,
+        int pixelHeight)
+    {
+        if (coordinateUnit == OcrCoordinateUnit.Pixel || boxPoints.Count == 0)
+            return;
+
+        if (pixelWidth <= 0 || pixelHeight <= 0)
+        {
+            boxPoints.Clear();
+            return;
+        }
+
+        foreach (var point in boxPoints)
+        {
+            point.X = Math.Clamp(point.X, 0, 1) * pixelWidth;
+            point.Y = Math.Clamp(point.Y, 0, 1) * pixelHeight;
+        }
+    }
+
+    private static void ProjectStructuredLayoutToContents(OcrResult ocrResult)
+    {
+        foreach (var paragraph in ocrResult.Regions.SelectMany(region => region.Paragraphs))
+        {
+            var lines = paragraph.Lines.Where(line => !string.IsNullOrWhiteSpace(line.Text)).ToList();
+            if (lines.Count == 0)
+                continue;
+
+            ocrResult.OcrContents.Add(new OcrContent
+            {
+                Text = JoinOcrLines(lines),
+                BoxPoints = paragraph.BoxPoints.Count > 0
+                    ? CloneBoxPoints(paragraph.BoxPoints)
+                    : UnionBoxPoints(lines.Select(line => line.BoxPoints).ToList())
+            });
+        }
+    }
+
+    private static string JoinOcrLines(IReadOnlyList<OcrContent> lines)
+    {
+        var text = lines[0].Text;
+        for (var i = 1; i < lines.Count; i++)
+        {
+            if (NeedsOcrSpace(text, lines[i].Text))
+                text += " ";
+
+            text += lines[i].Text;
+        }
+
+        return text;
+    }
+
+    private static bool NeedsOcrSpace(string previous, string current)
+    {
+        if (string.IsNullOrWhiteSpace(previous) || string.IsNullOrWhiteSpace(current))
+            return false;
+
+        var left = previous[^1];
+        var right = current[0];
+        return !char.IsWhiteSpace(left) &&
+               !char.IsWhiteSpace(right) &&
+               !char.IsPunctuation(left) &&
+               !char.IsPunctuation(right) &&
+               !IsCjk(left) &&
+               !IsCjk(right);
+    }
+
+    private static bool IsCjk(char ch) =>
+        (ch >= '\u3400' && ch <= '\u9fff') ||
+        (ch >= '\uf900' && ch <= '\ufaff') ||
+        (ch >= '\u3040' && ch <= '\u30ff') ||
+        (ch >= '\uac00' && ch <= '\ud7af');
+
+    private static List<BoxPoint> CloneBoxPoints(IReadOnlyList<BoxPoint> points) =>
+        points.Select(point => new BoxPoint(point.X, point.Y)).ToList();
+
+    private static List<BoxPoint> UnionBoxPoints(IReadOnlyList<List<BoxPoint>> boxPointGroups)
+    {
+        var validGroups = boxPointGroups.Where(points => points.Count > 0).ToList();
+        if (validGroups.Count == 0)
+            return [];
+
+        var minX = validGroups.Min(points => points.Min(point => point.X));
+        var minY = validGroups.Min(points => points.Min(point => point.Y));
+        var maxX = validGroups.Max(points => points.Max(point => point.X));
+        var maxY = validGroups.Max(points => points.Max(point => point.Y));
+
+        return
+        [
+            new(minX, minY),
+            new(maxX, minY),
+            new(maxX, maxY),
+            new(minX, maxY)
+        ];
     }
 
     #endregion

@@ -598,6 +598,8 @@
     <sys:String x:Key="ProxyTypeSocks5">Socks5</sys:String>
     <sys:String x:Key="ProxyTypeNone">None</sys:String>
 
+    <sys:String x:Key="LayoutAnalysisModeAuto">Auto</sys:String>
+    <sys:String x:Key="LayoutAnalysisModeProvider">Provider</sys:String>
     <sys:String x:Key="LayoutAnalysisModeSmart">Smart</sys:String>
     <sys:String x:Key="LayoutAnalysisModeNoMerge">NoMerge</sys:String>
 
