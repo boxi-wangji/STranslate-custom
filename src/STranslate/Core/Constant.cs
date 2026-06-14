@@ -63,7 +63,9 @@ public class Constant
         "09d6beef9b1f4891a4a0d8a8dbf510d1", //DeepL
         "0b5d84917783415d865032f1d6e2877f", //GoogleBuiltIn
         "0f6892a390a543709926092aba510273", //ICibaDict
+        "05e1bf32df8e4d18a9c39bd51d909bef", //ICibaTranslateBuiltIn
         "2d6f6831fd114463bfdebfd8ee85e549", //MicrosoftBuiltIn
+        "2cc83275790ba8ce96b31c4fe0655743", //TransmartBuiltIn
         "9e44abfa040e443c9ab48205683082f4", //MTranServer
         "76b14a8d707041c891a2dcd2f74be9c1", //OpenAI
         "2c1b2a2fa1e24ae79b7dc73bdea35159", //YandexBuiltIn
