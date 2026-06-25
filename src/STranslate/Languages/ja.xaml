@@ -721,6 +721,7 @@
     <sys:String x:Key="RecognizeLanguage">認識言語</sys:String>
     <sys:String x:Key="TranslateLanguage">翻訳言語</sys:String>
     <sys:String x:Key="ImageTranslateLanguageIndependentToolTip">画像翻訳ウィンドウの翻訳言語はメインウィンドウとは独立しています。ここで変更してもメインウィンドウには影響しません。</sys:String>
+    <sys:String x:Key="ImageTranslateLayoutAnalysisToolTip">画像翻訳の OCR テキストの分割・結合方法を選択します。再実行後に反映されます。</sys:String>
     <sys:String x:Key="ImTranSettingsToolTip" xml:space="preserve">左クリック -> 独立設定画面&#10;Ctrl+左クリック -> 文字認識設定&#10;Alt+左クリック -> テキスト翻訳設定</sys:String>
 
     <sys:String x:Key="CopySuccess">コピー成功</sys:String>

@@ -740,6 +740,7 @@
     <sys:String x:Key="RecognizeLanguage">Recognize Language</sys:String>
     <sys:String x:Key="TranslateLanguage">Translate Language</sys:String>
     <sys:String x:Key="ImageTranslateLanguageIndependentToolTip">The translation language in the image translation window is independent from the main window. Changes here will not affect the main window.</sys:String>
+    <sys:String x:Key="ImageTranslateLayoutAnalysisToolTip">Choose how image translation groups and merges OCR text. Rerun image translation to apply it.</sys:String>
     <sys:String x:Key="ImTranSettingsToolTip" xml:space="preserve">Left Click -> Standalone Window Settings&#10;Ctrl+Left Click -> Text Recognition Settings&#10;Alt+Left Click -> Text Translation Settings</sys:String>
 
     <!--  // Snackbar Messages //  -->

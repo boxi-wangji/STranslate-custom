@@ -721,6 +721,7 @@
     <sys:String x:Key="RecognizeLanguage">인식 언어</sys:String>
     <sys:String x:Key="TranslateLanguage">번역 언어</sys:String>
     <sys:String x:Key="ImageTranslateLanguageIndependentToolTip">이미지 번역 창의 번역 언어는 기본 창과 독립적입니다. 여기서 변경해도 기본 창에는 영향을 주지 않습니다.</sys:String>
+    <sys:String x:Key="ImageTranslateLayoutAnalysisToolTip">이미지 번역 OCR 텍스트의 분할 및 병합 방식을 선택합니다. 이미지 번역을 다시 실행하면 적용됩니다.</sys:String>
     <sys:String x:Key="ImTranSettingsToolTip" xml:space="preserve">좌클릭 -> 독립 창 설정&#10;Ctrl+좌클릭 -> 텍스트 인식 설정&#10;Alt+좌클릭 -> 텍스트 번역 설정</sys:String>
 
     <sys:String x:Key="CopySuccess">복사 성공</sys:String>

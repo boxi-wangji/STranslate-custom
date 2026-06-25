@@ -298,6 +298,13 @@
                         DisplayMemberPath="DisplayName"
                         ItemsSource="{Binding TransCollectionView}"
                         SelectedItem="{Binding SelectedTranslateEngine}" />
+                    <ComboBox
+                        Width="112"
+                        DisplayMemberPath="Display"
+                        ItemsSource="{Binding DataProvider.LayoutAnalysisModes}"
+                        SelectedValue="{Binding Settings.LayoutAnalysisMode}"
+                        SelectedValuePath="Value"
+                        ToolTip="{DynamicResource ImageTranslateLayoutAnalysisToolTip}" />
                     <Button Command="{Binding ToggleTextControlCommand}">
                         <Button.Style>
                             <Style BasedOn="{StaticResource {x:Type Button}}" TargetType="Button">

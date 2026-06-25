@@ -743,6 +743,7 @@
     <sys:String x:Key="RecognizeLanguage">辨識語言</sys:String>
     <sys:String x:Key="TranslateLanguage">翻譯語言</sys:String>
     <sys:String x:Key="ImageTranslateLanguageIndependentToolTip">圖片翻譯視窗的翻譯語言與主視窗相互獨立，修改這裡不會影響主視窗。</sys:String>
+    <sys:String x:Key="ImageTranslateLayoutAnalysisToolTip">選擇圖片翻譯 OCR 結果的分段與合併方式，重新執行圖片翻譯後生效。</sys:String>
     <sys:String x:Key="ImTranSettingsToolTip" xml:space="preserve">直接滑鼠左擊-&gt;獨立視窗設定&#10;Ctrl+滑鼠左擊-&gt;文字辨識設定&#10;Alt+滑鼠左擊-&gt;文字翻譯配置</sys:String>
 
     <!--  // Snackbar Messages //  -->
