@@ -73,8 +73,17 @@ public class LanguageDetector
         CancellationToken cancellationToken = default,
         Action? onStarted = default,
         Action<bool, LangEnum>? onCompleted = default,
-        Action? onFinished = default)
+        Action? onFinished = default,
+        LangDetectOptions? options = null)
     {
+        // null 表示使用全局 Settings 配置（文本翻译路径，行为不变）
+        options ??= new LangDetectOptions(
+            _settings.LanguageDetector,
+            _settings.LocalDetectorRate,
+            _settings.SourceLangIfAuto,
+            _settings.FirstLanguage,
+            _settings.SecondLanguage);
+
         bool isSuccess = true;
         var source = configuredSource;
         if (configuredSource == LangEnum.Auto)
@@ -82,9 +91,9 @@ public class LanguageDetector
             onStarted?.Invoke();
             try
             {
-                var detected = await DetectAsync(content, _settings.LanguageDetector, _settings.LocalDetectorRate, cancellationToken).ConfigureAwait(false);
+                var detected = await DetectAsync(content, options, cancellationToken).ConfigureAwait(false);
                 isSuccess = detected != LangEnum.Auto;
-                source = isSuccess ? detected : _settings.SourceLangIfAuto;
+                source = isSuccess ? detected : options.SourceLangIfAuto;
 
                 onCompleted?.Invoke(isSuccess, source);
             }
@@ -93,7 +102,7 @@ public class LanguageDetector
                 onFinished?.Invoke();
             }
         }
-        return (isSuccess, source, GetTargetLanguage(source, configuredTarget));
+        return (isSuccess, source, GetTargetLanguage(source, configuredTarget, options));
     }
 
     /// <summary>
@@ -110,30 +119,31 @@ public class LanguageDetector
     /// <param name="source">实际参与翻译的源语种。</param>
     /// <param name="configuredTarget">调用方配置的目标语种。</param>
     /// <returns>当前翻译链路应使用的目标语种。</returns>
-    public static LangEnum GetTargetLanguage(LangEnum source, LangEnum configuredTarget)
+    public static LangEnum GetTargetLanguage(LangEnum source, LangEnum configuredTarget, LangDetectOptions? options = null)
     {
         if (configuredTarget != LangEnum.Auto)
             return configuredTarget;
 
-        return (source == _settings.FirstLanguage || source == LangEnum.ChineseSimplified || source == LangEnum.ChineseTraditional)
-            ? _settings.SecondLanguage
-            : _settings.FirstLanguage;
+        var first = options?.FirstLanguage ?? _settings.FirstLanguage;
+        var second = options?.SecondLanguage ?? _settings.SecondLanguage;
+
+        return (source == first || source == LangEnum.ChineseSimplified || source == LangEnum.ChineseTraditional)
+            ? second
+            : first;
     }
 
     /// <summary>
     ///     识别语种
     /// </summary>
     /// <param name="text"></param>
-    /// <param name="type"></param>
-    /// <param name="rate"></param>
+    /// <param name="options">语种识别配置包。</param>
     /// <param name="token"></param>
     /// <returns></returns>
-    private static async Task<LangEnum> DetectAsync(string text, LanguageDetectorType type = LanguageDetectorType.Local,
-        double rate = 0.8, CancellationToken token = default)
+    private static async Task<LangEnum> DetectAsync(string text, LangDetectOptions options, CancellationToken token = default)
     {
-        return type switch
+        return options.Detector switch
         {
-            LanguageDetectorType.Local => LocalLangDetect(text, rate),
+            LanguageDetectorType.Local => LocalLangDetect(text, options.LocalDetectorRate),
             LanguageDetectorType.Baidu => await BaiduLangDetectAsync(text, token).ConfigureAwait(false),
             //LanguageDetectorType.Tencent => await TencentLangDetectAsync(text, token).ConfigureAwait(false),
             LanguageDetectorType.Niutrans => await NiutransLangDetectAsync(text, token).ConfigureAwait(false),
